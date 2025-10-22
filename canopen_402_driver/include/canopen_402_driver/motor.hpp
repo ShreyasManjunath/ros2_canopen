@@ -59,15 +59,32 @@ typedef ModeForwardHelper<
 class Motor402 : public MotorBase
 {
 public:
+  static constexpr uint16_t kDeviceProfileSegmentStride = 0x0800;
+  static constexpr uint16_t kMaxDeviceProfileSegment = 7;
+  static constexpr uint16_t kStatusWordBaseIndex = 0x6041;
+  static constexpr uint16_t kControlWordBaseIndex = 0x6040;
+  static constexpr uint16_t kOpModeDisplayBaseIndex = 0x6061;
+  static constexpr uint16_t kOpModeBaseIndex = 0x6060;
+  static constexpr uint16_t kSupportedDriveModesBaseIndex = 0x6502;
+
   Motor402(
     std::shared_ptr<LelyDriverBridge> driver, ros2_canopen::State402::InternalState switching_state,
-    int homing_timeout_seconds)
+    int homing_timeout_seconds, uint16_t device_profile_segment = 0)
   : MotorBase(),
     switching_state_(switching_state),
     monitor_mode_(true),
     state_switch_timeout_(5),
-    homing_timeout_seconds_(homing_timeout_seconds)
+    homing_timeout_seconds_(homing_timeout_seconds),
+    device_profile_segment_(std::min<uint16_t>(device_profile_segment, kMaxDeviceProfileSegment)),
+    device_profile_index_offset_(device_profile_segment_ * kDeviceProfileSegmentStride)
   {
+    if (device_profile_segment > kMaxDeviceProfileSegment)
+    {
+      RCLCPP_WARN(
+        rclcpp::get_logger("canopen_402_driver"),
+        "Requested device profile segment %u exceeds maximum %u, clamping to %u.",
+        device_profile_segment, kMaxDeviceProfileSegment, device_profile_segment_);
+    }
     this->driver = driver;
   }
 
@@ -185,21 +202,31 @@ public:
    */
   virtual void registerDefaultModes()
   {
-    registerMode<ProfiledPositionMode>(MotorBase::Profiled_Position, driver);
-    registerMode<VelocityMode>(MotorBase::Velocity, driver);
-    registerMode<ProfiledVelocityMode>(MotorBase::Profiled_Velocity, driver);
-    registerMode<ProfiledTorqueMode>(MotorBase::Profiled_Torque, driver);
-    registerMode<DefaultHomingMode>(MotorBase::Homing, driver, homing_timeout_seconds_);
-    registerMode<InterpolatedPositionMode>(MotorBase::Interpolated_Position, driver);
-    registerMode<CyclicSynchronousPositionMode>(MotorBase::Cyclic_Synchronous_Position, driver);
-    registerMode<CyclicSynchronousVelocityMode>(MotorBase::Cyclic_Synchronous_Velocity, driver);
-    registerMode<CyclicSynchronousTorqueMode>(MotorBase::Cyclic_Synchronous_Torque, driver);
+    registerMode<ProfiledPositionMode>(
+      MotorBase::Profiled_Position, driver, device_profile_index_offset_);
+    registerMode<VelocityMode>(MotorBase::Velocity, driver, device_profile_index_offset_);
+    registerMode<ProfiledVelocityMode>(
+      MotorBase::Profiled_Velocity, driver, device_profile_index_offset_);
+    registerMode<ProfiledTorqueMode>(MotorBase::Profiled_Torque, driver, device_profile_index_offset_);
+    registerMode<DefaultHomingMode>(
+      MotorBase::Homing, driver, homing_timeout_seconds_, device_profile_index_offset_);
+    registerMode<InterpolatedPositionMode>(
+      MotorBase::Interpolated_Position, driver, device_profile_index_offset_);
+    registerMode<CyclicSynchronousPositionMode>(
+      MotorBase::Cyclic_Synchronous_Position, driver, device_profile_index_offset_);
+    registerMode<CyclicSynchronousVelocityMode>(
+      MotorBase::Cyclic_Synchronous_Velocity, driver, device_profile_index_offset_);
+    registerMode<CyclicSynchronousTorqueMode>(
+      MotorBase::Cyclic_Synchronous_Torque, driver, device_profile_index_offset_);
   }
 
-  double get_speed() const { return (double)this->driver->universal_get_value<int32_t>(0x606C, 0); }
+  double get_speed() const
+  {
+    return (double)this->driver->universal_get_value<int32_t>(get_segmented_index(0x606C), 0);
+  }
   double get_position() const
   {
-    return (double)this->driver->universal_get_value<int32_t>(0x6064, 0);
+    return (double)this->driver->universal_get_value<int32_t>(get_segmented_index(0x6064), 0);
   }
 
   void set_diagnostic_status_msgs(std::shared_ptr<DiagnosticsCollector> status, bool enable)
@@ -240,11 +267,14 @@ private:
   const int homing_timeout_seconds_;
 
   std::shared_ptr<LelyDriverBridge> driver;
-  const uint16_t status_word_entry_index = 0x6041;
-  const uint16_t control_word_entry_index = 0x6040;
-  const uint16_t op_mode_display_index = 0x6061;
-  const uint16_t op_mode_index = 0x6060;
-  const uint16_t supported_drive_modes_index = 0x6502;
+
+  const uint16_t device_profile_segment_;
+  const uint16_t device_profile_index_offset_;
+
+  uint16_t get_segmented_index(uint16_t base_index) const
+  {
+    return static_cast<uint16_t>(base_index + device_profile_index_offset_);
+  }
 
   // Diagnostic components
   std::atomic<bool> enable_diagnostics_;

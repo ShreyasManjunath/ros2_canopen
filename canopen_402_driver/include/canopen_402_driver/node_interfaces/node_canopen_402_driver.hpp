@@ -63,6 +63,7 @@ protected:
   double offset_pos_from_dev_;
   ros2_canopen::State402::InternalState switching_state_;
   int homing_timeout_seconds_;
+  uint16_t device_profile_segment_{0};
 
   void publish();
   virtual void poll_timer_callback() override;

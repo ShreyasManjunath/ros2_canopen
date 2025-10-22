@@ -223,6 +223,7 @@ void NodeCanopen402Driver<rclcpp_lifecycle::LifecycleNode>::configure(bool calle
   std::optional<double> offset_pos_from_dev;
   std::optional<int> switching_state;
   std::optional<int> homing_timeout_seconds;
+  std::optional<int> device_profile_segment;
   try
   {
     scale_pos_to_dev = std::optional(this->config_["scale_pos_to_dev"].as<double>());
@@ -279,6 +280,13 @@ void NodeCanopen402Driver<rclcpp_lifecycle::LifecycleNode>::configure(bool calle
   catch (...)
   {
   }
+  try
+  {
+    device_profile_segment = std::optional(this->config_["device_profile_segment"].as<int>());
+  }
+  catch (...)
+  {
+  }
 
   // auto period = this->config_["scale_eff_to_dev"].as<double>();
   // auto period = this->config_["scale_eff_from_dev"].as<double>();
@@ -291,13 +299,30 @@ void NodeCanopen402Driver<rclcpp_lifecycle::LifecycleNode>::configure(bool calle
   switching_state_ = (ros2_canopen::State402::InternalState)switching_state.value_or(
     (int)ros2_canopen::State402::InternalState::Operation_Enable);
   homing_timeout_seconds_ = homing_timeout_seconds.value_or(10);
+  int configured_segment = device_profile_segment.value_or(0);
+  if (configured_segment < 0)
+  {
+    RCLCPP_WARN(
+      this->node_->get_logger(), "device_profile_segment %d is negative, clamping to 0.",
+      configured_segment);
+    configured_segment = 0;
+  }
+  if (configured_segment > static_cast<int>(Motor402::kMaxDeviceProfileSegment))
+  {
+    RCLCPP_WARN(
+      this->node_->get_logger(),
+      "device_profile_segment %d exceeds maximum %u, clamping.", configured_segment,
+      Motor402::kMaxDeviceProfileSegment);
+    configured_segment = Motor402::kMaxDeviceProfileSegment;
+  }
+  device_profile_segment_ = static_cast<uint16_t>(configured_segment);
   RCLCPP_INFO(
     this->node_->get_logger(),
     "scale_pos_to_dev_ %f\nscale_pos_from_dev_ %f\nscale_vel_to_dev_ %f\nscale_vel_from_dev_ "
     "%f\noffset_pos_to_dev_ %f\noffset_pos_from_dev_ "
-    "%f\nhoming_timeout_seconds_ %i\n",
+    "%f\nhoming_timeout_seconds_ %i\ndevice_profile_segment_ %u\n",
     scale_pos_to_dev_, scale_pos_from_dev_, scale_vel_to_dev_, scale_vel_from_dev_,
-    offset_pos_to_dev_, offset_pos_from_dev_, homing_timeout_seconds_);
+    offset_pos_to_dev_, offset_pos_from_dev_, homing_timeout_seconds_, device_profile_segment_);
 }
 
 template <>
@@ -312,6 +337,7 @@ void NodeCanopen402Driver<rclcpp::Node>::configure(bool called_from_base)
   std::optional<double> offset_pos_from_dev;
   std::optional<int> switching_state;
   std::optional<int> homing_timeout_seconds;
+  std::optional<int> device_profile_segment;
   try
   {
     scale_pos_to_dev = std::optional(this->config_["scale_pos_to_dev"].as<double>());
@@ -368,6 +394,13 @@ void NodeCanopen402Driver<rclcpp::Node>::configure(bool called_from_base)
   catch (...)
   {
   }
+  try
+  {
+    device_profile_segment = std::optional(this->config_["device_profile_segment"].as<int>());
+  }
+  catch (...)
+  {
+  }
 
   // auto period = this->config_["scale_eff_to_dev"].as<double>();
   // auto period = this->config_["scale_eff_from_dev"].as<double>();
@@ -380,13 +413,30 @@ void NodeCanopen402Driver<rclcpp::Node>::configure(bool called_from_base)
   switching_state_ = (ros2_canopen::State402::InternalState)switching_state.value_or(
     (int)ros2_canopen::State402::InternalState::Operation_Enable);
   homing_timeout_seconds_ = homing_timeout_seconds.value_or(10);
+  int configured_segment = device_profile_segment.value_or(0);
+  if (configured_segment < 0)
+  {
+    RCLCPP_WARN(
+      this->node_->get_logger(), "device_profile_segment %d is negative, clamping to 0.",
+      configured_segment);
+    configured_segment = 0;
+  }
+  if (configured_segment > static_cast<int>(Motor402::kMaxDeviceProfileSegment))
+  {
+    RCLCPP_WARN(
+      this->node_->get_logger(),
+      "device_profile_segment %d exceeds maximum %u, clamping.", configured_segment,
+      Motor402::kMaxDeviceProfileSegment);
+    configured_segment = Motor402::kMaxDeviceProfileSegment;
+  }
+  device_profile_segment_ = static_cast<uint16_t>(configured_segment);
   RCLCPP_INFO(
     this->node_->get_logger(),
     "scale_pos_to_dev_ %f\nscale_pos_from_dev_ %f\nscale_vel_to_dev_ %f\nscale_vel_from_dev_ "
     "%f\noffset_pos_to_dev_ %f\noffset_pos_from_dev_ "
-    "%f\nhoming_timeout_seconds_ %i\n",
+    "%f\nhoming_timeout_seconds_ %i\ndevice_profile_segment_ %u\n",
     scale_pos_to_dev_, scale_pos_from_dev_, scale_vel_to_dev_, scale_vel_from_dev_,
-    offset_pos_to_dev_, offset_pos_from_dev_, homing_timeout_seconds_);
+    offset_pos_to_dev_, offset_pos_from_dev_, homing_timeout_seconds_, device_profile_segment_);
 }
 
 template <class NODETYPE>
@@ -428,8 +478,8 @@ template <class NODETYPE>
 void NodeCanopen402Driver<NODETYPE>::add_to_master()
 {
   NodeCanopenProxyDriver<NODETYPE>::add_to_master();
-  motor_ =
-    std::make_shared<Motor402>(this->lely_driver_, switching_state_, homing_timeout_seconds_);
+  motor_ = std::make_shared<Motor402>(
+    this->lely_driver_, switching_state_, homing_timeout_seconds_, device_profile_segment_);
 }
 
 template <class NODETYPE>

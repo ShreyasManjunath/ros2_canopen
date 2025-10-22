@@ -28,6 +28,7 @@ class DefaultHomingMode : public HomingMode
 {
   const uint16_t index = 0x6098;
   std::shared_ptr<LelyDriverBridge> driver;
+  uint16_t index_offset_;
 
   std::atomic<bool> execute_;
 
@@ -51,10 +52,10 @@ class DefaultHomingMode : public HomingMode
   }
 
 public:
-  DefaultHomingMode(std::shared_ptr<LelyDriverBridge> driver, int homing_timeout_seconds)
-  : homing_timeout_seconds_(homing_timeout_seconds)
+  DefaultHomingMode(
+    std::shared_ptr<LelyDriverBridge> driver, int homing_timeout_seconds, uint16_t index_offset = 0)
+  : driver(driver), index_offset_(index_offset), homing_timeout_seconds_(homing_timeout_seconds)
   {
-    this->driver = driver;
   }
   virtual bool start();
   virtual bool read(const uint16_t & sw);

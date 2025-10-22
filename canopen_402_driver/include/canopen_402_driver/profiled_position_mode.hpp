@@ -29,6 +29,7 @@ class ProfiledPositionMode : public ModeTargetHelper<int32_t>
 {
   const uint16_t index = 0x607A;
   std::shared_ptr<LelyDriverBridge> driver;
+  uint16_t index_offset_;
 
   double last_target_;
   uint16_t sw_;
@@ -46,10 +47,10 @@ public:
     CW_Immediate = Command402::CW_Operation_mode_specific1,
     CW_Blending = Command402::CW_Operation_mode_specific3,
   };
-  ProfiledPositionMode(std::shared_ptr<LelyDriverBridge> driver)
-  : ModeTargetHelper(MotorBase::Profiled_Position)
+  ProfiledPositionMode(
+    std::shared_ptr<LelyDriverBridge> driver, uint16_t index_offset = 0)
+  : ModeTargetHelper(MotorBase::Profiled_Position), driver(driver), index_offset_(index_offset)
   {
-    this->driver = driver;
   }
 
   virtual bool start()
@@ -77,7 +78,7 @@ public:
         }
         else
         {
-          driver->universal_set_value(index, 0x0, target);
+          driver->universal_set_value(index + index_offset_, 0x0, target);
           cw.set(CW_NewPoint);
           last_target_ = target;
         }

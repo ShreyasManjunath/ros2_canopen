@@ -142,6 +142,9 @@ Additional parameters that can be used in bus.yml for this driver.
   * - scale_vel_from_dev
     - double
     - Scaling factor to convert from device units to SI units for velocity.
+  * - device_profile_segment
+    - int
+    - Selects the CiA 301 device profile segment (0-7). Each step shifts device profile indices by 0x800 to address multiple modules on a single node.
   * - position_mode
     - int
     - The drives operation mode to use for the position interface

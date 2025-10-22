@@ -30,11 +30,12 @@ template <uint16_t ID, typename TYPE, uint16_t OBJ, uint8_t SUB, uint16_t CW_MAS
 class ModeForwardHelper : public ModeTargetHelper<TYPE>
 {
   std::shared_ptr<LelyDriverBridge> driver;
+  uint16_t index_offset_;
 
 public:
-  ModeForwardHelper(std::shared_ptr<LelyDriverBridge> driver) : ModeTargetHelper<TYPE>(ID)
+  ModeForwardHelper(std::shared_ptr<LelyDriverBridge> driver, uint16_t index_offset = 0)
+  : ModeTargetHelper<TYPE>(ID), driver(driver), index_offset_(index_offset)
   {
-    this->driver = driver;
   }
   virtual bool read(const uint16_t & sw) { return true; }
   virtual bool write(Mode::OpModeAccesser & cw)
@@ -43,7 +44,7 @@ public:
     {
       cw = cw.get() | CW_MASK;
 
-      driver->universal_set_value<TYPE>(OBJ, SUB, this->getTarget());
+      driver->universal_set_value<TYPE>(OBJ + index_offset_, SUB, this->getTarget());
       return true;
     }
     else

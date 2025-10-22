@@ -53,7 +53,7 @@ bool DefaultHomingMode::write(Mode::OpModeAccesser & cw)
 
 bool DefaultHomingMode::executeHoming()
 {
-  int hmode = driver->universal_get_value<int8_t>(index, 0x0);
+  int hmode = driver->universal_get_value<int8_t>(index + index_offset_, 0x0);
   if (hmode == 0)
   {
     return true;
