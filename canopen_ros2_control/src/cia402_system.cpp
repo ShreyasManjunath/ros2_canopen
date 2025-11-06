@@ -130,13 +130,15 @@ std::vector<hardware_interface::StateInterface> Cia402System::export_state_inter
     const uint8_t node_id = static_cast<uint8_t>(std::stoi(info_.joints[i].parameters["node_id"]));
 
     // actual position
-    state_interfaces.emplace_back(hardware_interface::StateInterface(
-      info_.joints[i].name, hardware_interface::HW_IF_POSITION,
-      &motor_data_[node_id].actual_position));
+    state_interfaces.emplace_back(
+      hardware_interface::StateInterface(
+        info_.joints[i].name, hardware_interface::HW_IF_POSITION,
+        &motor_data_[node_id].actual_position));
     // actual speed
-    state_interfaces.emplace_back(hardware_interface::StateInterface(
-      info_.joints[i].name, hardware_interface::HW_IF_VELOCITY,
-      &motor_data_[node_id].actual_speed));
+    state_interfaces.emplace_back(
+      hardware_interface::StateInterface(
+        info_.joints[i].name, hardware_interface::HW_IF_VELOCITY,
+        &motor_data_[node_id].actual_speed));
   }
 
   return state_interfaces;
@@ -160,66 +162,85 @@ std::vector<hardware_interface::CommandInterface> Cia402System::export_command_i
     const uint8_t node_id = static_cast<uint8_t>(std::stoi(info_.joints[i].parameters["node_id"]));
 
     // target
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      info_.joints[i].name, hardware_interface::HW_IF_POSITION,
-      &motor_data_[node_id].target.position_value));
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      info_.joints[i].name, hardware_interface::HW_IF_VELOCITY,
-      &motor_data_[node_id].target.velocity_value));
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      info_.joints[i].name, hardware_interface::HW_IF_EFFORT,
-      &motor_data_[node_id].target.torque_value));
+    command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(
+        info_.joints[i].name, hardware_interface::HW_IF_POSITION,
+        &motor_data_[node_id].target.position_value));
+    command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(
+        info_.joints[i].name, hardware_interface::HW_IF_VELOCITY,
+        &motor_data_[node_id].target.velocity_value));
+    command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(
+        info_.joints[i].name, hardware_interface::HW_IF_EFFORT,
+        &motor_data_[node_id].target.torque_value));
     // init
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      info_.joints[i].name, "init_cmd", &motor_data_[node_id].init.ons_cmd));
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      info_.joints[i].name, "init_fbk", &motor_data_[node_id].init.resp));
+    command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(
+        info_.joints[i].name, "init_cmd", &motor_data_[node_id].init.ons_cmd));
+    command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(
+        info_.joints[i].name, "init_fbk", &motor_data_[node_id].init.resp));
 
     // halt
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      info_.joints[i].name, "halt_cmd", &motor_data_[node_id].halt.ons_cmd));
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      info_.joints[i].name, "halt_fbk", &motor_data_[node_id].halt.resp));
+    command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(
+        info_.joints[i].name, "halt_cmd", &motor_data_[node_id].halt.ons_cmd));
+    command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(
+        info_.joints[i].name, "halt_fbk", &motor_data_[node_id].halt.resp));
 
     // recover
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      info_.joints[i].name, "recover_cmd", &motor_data_[node_id].recover.ons_cmd));
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      info_.joints[i].name, "recover_fbk", &motor_data_[node_id].recover.resp));
+    command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(
+        info_.joints[i].name, "recover_cmd", &motor_data_[node_id].recover.ons_cmd));
+    command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(
+        info_.joints[i].name, "recover_fbk", &motor_data_[node_id].recover.resp));
 
     // set position mode
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      info_.joints[i].name, "position_mode_cmd", &motor_data_[node_id].position_mode.ons_cmd));
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      info_.joints[i].name, "position_mode_fbk", &motor_data_[node_id].position_mode.resp));
+    command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(
+        info_.joints[i].name, "position_mode_cmd", &motor_data_[node_id].position_mode.ons_cmd));
+    command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(
+        info_.joints[i].name, "position_mode_fbk", &motor_data_[node_id].position_mode.resp));
 
     // set velocity mode
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      info_.joints[i].name, "velocity_mode_cmd", &motor_data_[node_id].velocity_mode.ons_cmd));
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      info_.joints[i].name, "velocity_mode_fbk", &motor_data_[node_id].velocity_mode.resp));
+    command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(
+        info_.joints[i].name, "velocity_mode_cmd", &motor_data_[node_id].velocity_mode.ons_cmd));
+    command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(
+        info_.joints[i].name, "velocity_mode_fbk", &motor_data_[node_id].velocity_mode.resp));
 
     // set cyclic velocity mode
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      info_.joints[i].name, "cyclic_velocity_mode_cmd",
-      &motor_data_[node_id].cyclic_velocity_mode.ons_cmd));
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      info_.joints[i].name, "cyclic_velocity_mode_fbk",
-      &motor_data_[node_id].cyclic_velocity_mode.resp));
+    command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(
+        info_.joints[i].name, "cyclic_velocity_mode_cmd",
+        &motor_data_[node_id].cyclic_velocity_mode.ons_cmd));
+    command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(
+        info_.joints[i].name, "cyclic_velocity_mode_fbk",
+        &motor_data_[node_id].cyclic_velocity_mode.resp));
     // set cyclic position mode
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      info_.joints[i].name, "cyclic_position_mode_cmd",
-      &motor_data_[node_id].cyclic_position_mode.ons_cmd));
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      info_.joints[i].name, "cyclic_position_mode_fbk",
-      &motor_data_[node_id].cyclic_position_mode.resp));
+    command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(
+        info_.joints[i].name, "cyclic_position_mode_cmd",
+        &motor_data_[node_id].cyclic_position_mode.ons_cmd));
+    command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(
+        info_.joints[i].name, "cyclic_position_mode_fbk",
+        &motor_data_[node_id].cyclic_position_mode.resp));
     // set interpolated position mode
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      info_.joints[i].name, "interpolated_position_mode_cmd",
-      &motor_data_[node_id].interpolated_position_mode.ons_cmd));
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      info_.joints[i].name, "interpolated_position_mode_fbk",
-      &motor_data_[node_id].interpolated_position_mode.resp));
+    command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(
+        info_.joints[i].name, "interpolated_position_mode_cmd",
+        &motor_data_[node_id].interpolated_position_mode.ons_cmd));
+    command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(
+        info_.joints[i].name, "interpolated_position_mode_fbk",
+        &motor_data_[node_id].interpolated_position_mode.resp));
   }
 
   return command_interfaces;

@@ -14,6 +14,8 @@
 //    limitations under the License.
 
 #include "canopen_core/device_container.hpp"
+#include <cstdint>
+#include <utility>
 #include "canopen_core/device_container_error.hpp"
 
 using namespace ros2_canopen;
@@ -23,10 +25,10 @@ void DeviceContainer::set_executor(const std::weak_ptr<rclcpp::Executor> executo
   executor_ = executor;
 }
 
-bool DeviceContainer::init_driver(uint16_t node_id)
+bool DeviceContainer::init_driver(uint16_t node_id, uint16_t device_profile_segment = 0)
 {
   RCLCPP_DEBUG(this->get_logger(), "init_driver");
-  registered_drivers_[node_id]->set_master(
+  registered_drivers_[std::make_pair(node_id, channel)]->set_master(
     this->can_master_->get_executor(), this->can_master_->get_master());
   return true;
 }
@@ -34,7 +36,7 @@ bool DeviceContainer::init_driver(uint16_t node_id)
 bool DeviceContainer::load_component(
   const std::string package_name, const std::string driver_name, const uint16_t node_id,
   const std::string node_name, std::vector<rclcpp::Parameter> & params,
-  const std::string node_namespace)
+  const std::string node_namespace, const uint16_t device_profile_segment)
 {
   ComponentResource component;
   std::string resource_index("rclcpp_components");
@@ -106,7 +108,7 @@ bool DeviceContainer::load_component(
             }
             else
             {
-              registered_drivers_[node_id] = node;
+              registered_drivers_[std::make_pair(node_id, device_profile_segment)] = node;
             }
           }
           else
@@ -126,7 +128,7 @@ bool DeviceContainer::load_component(
             }
             else
             {
-              registered_drivers_[node_id] = node;
+              registered_drivers_[std::make_pair(node_id, device_profile_segment)] = node;
             }
           }
         }
@@ -287,6 +289,7 @@ bool DeviceContainer::load_drivers()
       auto driver_name = config_->get_entry<std::string>(*it, "driver");
       auto package_name = config_->get_entry<std::string>(*it, "package");
       auto node_namespace = config_->get_entry<std::string>(*it, "namespace").value_or("");
+      auto device_profile_segment = config_->get_entry<uint16_t>(*it, "device_profile_segment");
       if (!node_id.has_value() || !driver_name.has_value() || !package_name.has_value())
       {
         RCLCPP_ERROR(
@@ -303,27 +306,31 @@ bool DeviceContainer::load_drivers()
         return false;
       }
 
-      if (registered_drivers_.count(node_id.value()) != 0)
-      {
-        RCLCPP_ERROR(
-          this->get_logger(), "Error: Bus Configuration has duplicate entry for node id %i",
-          node_id.value());
-        return false;
-      }
+      // TODO(smanjunath): rethink of this check which also support multi-channel setup
+
+      // if (registered_drivers_.count(node_id.value()) != 0)
+      // {
+      //   RCLCPP_ERROR(
+      //     this->get_logger(), "Error: Bus Configuration has duplicate entry for node id %i",
+      //     node_id.value());
+      //   return false;
+      // }
 
       RCLCPP_INFO(
-        this->get_logger(), "Found device %s with driver %s", it->c_str(),
-        driver_name.value().c_str());
+        this->get_logger(), "Found device %s with driver %s and channel %i", it->c_str(),
+        driver_name.value().c_str(), device_profile_segment.value());
 
       std::vector<rclcpp::Parameter> params;
       params.push_back(rclcpp::Parameter("container_name", this->get_fully_qualified_name()));
       params.push_back(rclcpp::Parameter("node_id", (int)node_id.value()));
       params.push_back(rclcpp::Parameter("config", config_->dump_device(*it)));
       params.push_back(rclcpp::Parameter("non_transmit_timeout", 100));
+      params.push_back(
+        rclcpp::Parameter("device_profile_segment", (int)device_profile_segment.value()));
 
       if (!this->load_component(
-            package_name.value(), driver_name.value(), node_id.value(), *it, params,
-            node_namespace))
+            package_name.value(), driver_name.value(), node_id.value(), *it, params, node_namespace,
+            device_profile_segment.value()))
       {
         RCLCPP_ERROR(
           this->get_logger(),
@@ -331,8 +338,10 @@ bool DeviceContainer::load_drivers()
           node_id.value(), it->c_str(), driver_name.value().c_str(), package_name.value().c_str());
         return false;
       }
-      add_node_to_executor(registered_drivers_[node_id.value()]->get_node_base_interface());
-      registered_drivers_[node_id.value()]->init();
+      add_node_to_executor(
+        registered_drivers_[std::make_pair(node_id.value(), device_profile_segment.value())]
+          ->get_node_base_interface());
+      registered_drivers_[std::make_pair(node_id.value(), device_profile_segment.value())]->init();
     }
   }
   return true;
@@ -440,7 +449,8 @@ std::map<uint16_t, std::string> DeviceContainer::list_components()
 
   for (auto & driver : registered_drivers_)
   {
-    components[driver.first] = driver.second->get_node_base_interface()->get_fully_qualified_name();
+    const auto & key = driver.first;
+    components[key.second] = driver.second->get_node_base_interface()->get_fully_qualified_name();
   }
 
   return components;

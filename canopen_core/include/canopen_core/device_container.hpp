@@ -17,9 +17,12 @@
 #define LIFECYCLE_DEVICE_CONTAINER_NODE_HPP
 
 #include <chrono>
+#include <cstdint>
 #include <memory>
 #include <rclcpp/executors.hpp>
 #include <rclcpp_components/component_manager.hpp>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 #include "canopen_core/configuration_manager.hpp"
 #include "canopen_core/driver_node.hpp"
@@ -32,6 +35,24 @@ using namespace std::chrono_literals;
 
 namespace ros2_canopen
 {
+
+struct DriverKeyHash
+{
+  std::size_t operator()(const std::pair<uint16_t, uint16_t> & k) const noexcept
+  {
+    return std::hash<uint16_t>()(k.first) ^ (std::hash<uint16_t>()(k.second) << 1);
+  }
+};
+
+struct DriverKeyEqual
+{
+  bool operator()(
+    const std::pair<uint16_t, uint16_t> & a, const std::pair<uint16_t, uint16_t> & b) const noexcept
+  {
+    return a.first == b.first && a.second == b.second;
+  }
+};
+
 /**
  * @brief Lifecycle Device Container for CANopen
  *
@@ -137,7 +158,7 @@ public:
   virtual bool load_component(
     const std::string package_name, const std::string driver_name, const uint16_t node_id,
     const std::string node_name, std::vector<rclcpp::Parameter> & params,
-    const std::string node_namespace = "");
+    const std::string node_namespace = "", const uint16_t device_profile_segment = 0);
 
   /**
    * @brief Shutdown all devices.
@@ -189,7 +210,10 @@ public:
    *
    * @return std::map<uint16_t, std::shared_ptr<CanopenDriverInterface>>
    */
-  virtual std::map<uint16_t, std::shared_ptr<CanopenDriverInterface>> get_registered_drivers()
+  virtual std::unordered_map<
+    std::pair<uint16_t, uint16_t>, std::shared_ptr<CanopenDriverInterface>, DriverKeyHash,
+    DriverKeyEqual>
+  get_registered_drivers()
   {
     return registered_drivers_;
   }
@@ -266,8 +290,12 @@ public:
 
 protected:
   // Components
-  std::map<uint16_t, std::shared_ptr<CanopenDriverInterface>>
-    registered_drivers_;  ///< Map of drivers registered in busconfiguration. Name is key.
+  std::unordered_map<
+    std::pair<uint16_t, uint16_t>, std::shared_ptr<CanopenDriverInterface>, DriverKeyHash,
+    DriverKeyEqual>
+    registered_drivers_;
+  // std::map<uint16_t, std::shared_ptr<CanopenDriverInterface>>
+  //   registered_drivers_;  ///< Map of drivers registered in busconfiguration. Name is key.
   std::shared_ptr<ros2_canopen::CanopenMasterInterface>
     can_master_;  ///< Pointer to can master instance
   uint16_t can_master_id_;
@@ -307,7 +335,7 @@ protected:
    * @return true
    * @return false
    */
-  bool init_driver(uint16_t node_id);
+  bool init_driver(uint16_t node_id, uint16_t channel);
 
   /**
    * @brief Callback for init driver service
