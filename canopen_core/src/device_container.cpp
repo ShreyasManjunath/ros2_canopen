@@ -28,7 +28,7 @@ void DeviceContainer::set_executor(const std::weak_ptr<rclcpp::Executor> executo
 bool DeviceContainer::init_driver(uint16_t node_id, uint16_t device_profile_segment = 0)
 {
   RCLCPP_DEBUG(this->get_logger(), "init_driver");
-  registered_drivers_[std::make_pair(node_id, channel)]->set_master(
+  registered_drivers_[std::make_pair(node_id, device_profile_segment)]->set_master(
     this->can_master_->get_executor(), this->can_master_->get_master());
   return true;
 }

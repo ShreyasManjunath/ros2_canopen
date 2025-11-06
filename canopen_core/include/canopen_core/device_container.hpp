@@ -335,7 +335,7 @@ protected:
    * @return true
    * @return false
    */
-  bool init_driver(uint16_t node_id, uint16_t channel);
+  bool init_driver(uint16_t node_id, uint16_t device_profile_segment);
 
   /**
    * @brief Callback for init driver service
@@ -347,7 +347,7 @@ protected:
     const canopen_interfaces::srv::CONode::Request::SharedPtr request,
     canopen_interfaces::srv::CONode::Response::SharedPtr response)
   {
-    response->success = init_driver(request->nodeid);
+    response->success = init_driver(request->nodeid, request->channel);
   }
 
   /**
