@@ -29,8 +29,8 @@ add_library(
   canopen_ros2_control
   SHARED
   src/canopen_system.cpp
-  src/cia402_system.cpp
-  src/robot_system.cpp
+  # src/cia402_system.cpp
+  # src/robot_system.cpp
 )
 
 

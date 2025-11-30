@@ -23,6 +23,7 @@
 
 #include "canopen_ros2_control/canopen_system.hpp"
 
+#include <cstdint>
 #include <limits>
 #include <vector>
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
@@ -130,33 +131,38 @@ void CanopenSystem::initDeviceContainer()
     info_.hardware_parameters["can_interface_name"], info_.hardware_parameters["master_config"],
     info_.hardware_parameters["bus_config"], tmp_master_bin);
   RCLCPP_INFO(kLogger, "Number of registered drivers: '%zu'", device_container_->count_drivers());
-  for (const auto & [node_id, driver] : device_container_->get_registered_drivers())
+  for (const auto & entry : device_container_->get_registered_drivers())
   {
+    const auto & key = entry.first;
+    uint16_t node_id = key.first;
+    uint16_t channel = key.second;
+    auto driver = entry.second;
+
     auto proxy_driver = std::static_pointer_cast<ros2_canopen::ProxyDriver>(driver);
     // initialize canopen data it not existing
-    if (canopen_data_.find(node_id) == canopen_data_.end())
+    if (canopen_data_.find(key) == canopen_data_.end())
     {
-      canopen_data_[node_id] = CanopenNodeData();
+      canopen_data_[key] = CanopenNodeData();
     }
 
-    auto nmt_state_cb = [&](canopen::NmtState nmt_state, uint8_t id)
-    { canopen_data_[id].nmt_state.set_state(nmt_state); };
+    auto nmt_state_cb = [this, key](canopen::NmtState nmt_state, uint8_t /*id*/)
+    { canopen_data_[key].nmt_state.set_state(nmt_state); };
     // register callback
     proxy_driver->register_nmt_state_cb(nmt_state_cb);
 
-    auto rpdo_cb = [&](ros2_canopen::COData data, uint8_t id)
-    { canopen_data_[id].set_rpdo_data(data); };
+    auto rpdo_cb = [this, key](ros2_canopen::COData data, uint8_t /*id*/)
+    { canopen_data_[key].set_rpdo_data(data); };
     // register callback
     proxy_driver->register_rpdo_cb(rpdo_cb);
 
-    auto emcy_cb = [&](ros2_canopen::COEmcy data, uint8_t id)
-    { canopen_data_[id].emcy_data.set_emcy(data); };
+    auto emcy_cb = [&](ros2_canopen::COEmcy data, uint8_t /*id*/)
+    { canopen_data_[key].emcy_data.set_emcy(data); };
     // register callback
     proxy_driver->register_emcy_cb(emcy_cb);
 
     RCLCPP_INFO(
-      kLogger, "\nRegistered driver:\n    name: '%s'\n    node_id: '0x%X'",  //
-      driver->get_node_base_interface()->get_name(), node_id);
+      kLogger, "\nRegistered driver:\n    name: '%s'\n    node_id: '0x%X'  channel: '%i'",  //
+      driver->get_node_base_interface()->get_name(), node_id, channel);
   }
 
   RCLCPP_INFO(device_container_->get_logger(), "Initialisation successful.");
@@ -173,36 +179,57 @@ std::vector<hardware_interface::StateInterface> CanopenSystem::export_state_inte
       continue;
     }
     const uint8_t node_id = static_cast<uint8_t>(std::stoi(info_.joints[i].parameters["node_id"]));
+    const uint8_t channel =
+      static_cast<uint8_t>(std::stoi(info_.joints[i].parameters["device_profile_segment"]));
     //      RCLCPP_INFO(kLogger, "node id on export state interface for joint: '%s' is '%s'",
     //      info_.joints[i].name.c_str(), info_.joints[i].parameters["node_id"].c_str());
 
     // rpdo index
-    state_interfaces.emplace_back(hardware_interface::StateInterface(
-      info_.joints[i].name, "rpdo/index", &canopen_data_[node_id].rpdo_data.index));
+    state_interfaces.emplace_back(
+      hardware_interface::StateInterface(
+        info_.joints[i].name, "rpdo/index", &canopen_data_[{node_id, channel}].rpdo_data.index));
 
-    state_interfaces.emplace_back(hardware_interface::StateInterface(
-      info_.joints[i].name, "rpdo/subindex", &canopen_data_[node_id].rpdo_data.subindex));
+    state_interfaces.emplace_back(
+      hardware_interface::StateInterface(
+        info_.joints[i].name, "rpdo/subindex",
+        &canopen_data_[{node_id, channel}].rpdo_data.subindex));
 
-    state_interfaces.emplace_back(hardware_interface::StateInterface(
-      info_.joints[i].name, "rpdo/data", &canopen_data_[node_id].rpdo_data.data));
+    state_interfaces.emplace_back(
+      hardware_interface::StateInterface(
+        info_.joints[i].name, "rpdo/data", &canopen_data_[{node_id, channel}].rpdo_data.data));
 
-    state_interfaces.emplace_back(hardware_interface::StateInterface(
-      info_.joints[i].name, "nmt/state", &canopen_data_[node_id].nmt_state.state));
+    state_interfaces.emplace_back(
+      hardware_interface::StateInterface(
+        info_.joints[i].name, "nmt/state", &canopen_data_[{node_id, channel}].nmt_state.state));
 
-    state_interfaces.emplace_back(hardware_interface::StateInterface(
-      info_.joints[i].name, "emcy/error_code", &canopen_data_[node_id].emcy_data.error_code));
-    state_interfaces.emplace_back(hardware_interface::StateInterface(
-      info_.joints[i].name, "emcy/error_register", &canopen_data_[node_id].emcy_data.error_register));
-    state_interfaces.emplace_back(hardware_interface::StateInterface(
-      info_.joints[i].name, "emcy/manufacturer_error_code1", &canopen_data_[node_id].emcy_data.manufacturer_error_code1));
-    state_interfaces.emplace_back(hardware_interface::StateInterface(
-      info_.joints[i].name, "emcy/manufacturer_error_code2", &canopen_data_[node_id].emcy_data.manufacturer_error_code2));
-    state_interfaces.emplace_back(hardware_interface::StateInterface(
-      info_.joints[i].name, "emcy/manufacturer_error_code3", &canopen_data_[node_id].emcy_data.manufacturer_error_code3));
-    state_interfaces.emplace_back(hardware_interface::StateInterface(
-      info_.joints[i].name, "emcy/manufacturer_error_code4", &canopen_data_[node_id].emcy_data.manufacturer_error_code4));
-    state_interfaces.emplace_back(hardware_interface::StateInterface(
-      info_.joints[i].name, "emcy/manufacturer_error_code5", &canopen_data_[node_id].emcy_data.manufacturer_error_code5));
+    state_interfaces.emplace_back(
+      hardware_interface::StateInterface(
+        info_.joints[i].name, "emcy/error_code",
+        &canopen_data_[{node_id, channel}].emcy_data.error_code));
+    state_interfaces.emplace_back(
+      hardware_interface::StateInterface(
+        info_.joints[i].name, "emcy/error_register",
+        &canopen_data_[{node_id, channel}].emcy_data.error_register));
+    state_interfaces.emplace_back(
+      hardware_interface::StateInterface(
+        info_.joints[i].name, "emcy/manufacturer_error_code1",
+        &canopen_data_[{node_id, channel}].emcy_data.manufacturer_error_code1));
+    state_interfaces.emplace_back(
+      hardware_interface::StateInterface(
+        info_.joints[i].name, "emcy/manufacturer_error_code2",
+        &canopen_data_[{node_id, channel}].emcy_data.manufacturer_error_code2));
+    state_interfaces.emplace_back(
+      hardware_interface::StateInterface(
+        info_.joints[i].name, "emcy/manufacturer_error_code3",
+        &canopen_data_[{node_id, channel}].emcy_data.manufacturer_error_code3));
+    state_interfaces.emplace_back(
+      hardware_interface::StateInterface(
+        info_.joints[i].name, "emcy/manufacturer_error_code4",
+        &canopen_data_[{node_id, channel}].emcy_data.manufacturer_error_code4));
+    state_interfaces.emplace_back(
+      hardware_interface::StateInterface(
+        info_.joints[i].name, "emcy/manufacturer_error_code5",
+        &canopen_data_[{node_id, channel}].emcy_data.manufacturer_error_code5));
   }
 
   return state_interfaces;
@@ -220,28 +247,41 @@ std::vector<hardware_interface::CommandInterface> CanopenSystem::export_command_
     }
 
     const uint8_t node_id = static_cast<uint8_t>(std::stoi(info_.joints[i].parameters["node_id"]));
+    const uint8_t channel =
+      static_cast<uint8_t>(std::stoi(info_.joints[i].parameters["device_profile_segment"]));
 
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      info_.joints[i].name, "tpdo/index", &canopen_data_[node_id].tpdo_data.index));
+    command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(
+        info_.joints[i].name, "tpdo/index", &canopen_data_[{node_id, channel}].tpdo_data.index));
 
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      info_.joints[i].name, "tpdo/subindex", &canopen_data_[node_id].tpdo_data.subindex));
+    command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(
+        info_.joints[i].name, "tpdo/subindex",
+        &canopen_data_[{node_id, channel}].tpdo_data.subindex));
 
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      info_.joints[i].name, "tpdo/data", &canopen_data_[node_id].tpdo_data.data));
+    command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(
+        info_.joints[i].name, "tpdo/data", &canopen_data_[{node_id, channel}].tpdo_data.data));
 
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      info_.joints[i].name, "tpdo/ons", &canopen_data_[node_id].tpdo_data.one_shot));
+    command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(
+        info_.joints[i].name, "tpdo/ons", &canopen_data_[{node_id, channel}].tpdo_data.one_shot));
 
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      info_.joints[i].name, "nmt/reset", &canopen_data_[node_id].nmt_state.reset_ons));
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      info_.joints[i].name, "nmt/reset_fbk", &canopen_data_[node_id].nmt_state.reset_fbk));
+    command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(
+        info_.joints[i].name, "nmt/reset", &canopen_data_[{node_id, channel}].nmt_state.reset_ons));
+    command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(
+        info_.joints[i].name, "nmt/reset_fbk",
+        &canopen_data_[{node_id, channel}].nmt_state.reset_fbk));
 
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      info_.joints[i].name, "nmt/start", &canopen_data_[node_id].nmt_state.start_ons));
-    command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      info_.joints[i].name, "nmt/start_fbk", &canopen_data_[node_id].nmt_state.start_fbk));
+    command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(
+        info_.joints[i].name, "nmt/start", &canopen_data_[{node_id, channel}].nmt_state.start_ons));
+    command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(
+        info_.joints[i].name, "nmt/start_fbk",
+        &canopen_data_[{node_id, channel}].nmt_state.start_fbk));
   }
 
   return command_interfaces;
@@ -277,7 +317,9 @@ hardware_interface::return_type CanopenSystem::read(
     if (canopen_data.emcy_data.error_code != 0)
     {
       RCLCPP_ERROR(
-        kLogger, "NodeID: 0x%X; Error code: %X; Error register: %X; Manufacturer error code: [%X, %X, %X, %X, %X];",
+        kLogger,
+        "NodeID: 0x%X; Error code: %X; Error register: %X; Manufacturer error code: [%X, %X, %X, "
+        "%X, %X];",
         node_id, canopen_data.emcy_data.original_emcy.eec, canopen_data.emcy_data.original_emcy.er,
         canopen_data.emcy_data.original_emcy.msef[0], canopen_data.emcy_data.original_emcy.msef[1],
         canopen_data.emcy_data.original_emcy.msef[2], canopen_data.emcy_data.original_emcy.msef[3],
@@ -325,7 +367,7 @@ hardware_interface::return_type CanopenSystem::write(
       {
         proxy_driver->tpdo_transmit(it->second.tpdo_data.original_data);
       }
-      catch(const std::exception& e)
+      catch (const std::exception & e)
       {
         std::cerr << e.what() << '\n';
       }

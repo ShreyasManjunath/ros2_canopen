@@ -1,3 +1,4 @@
 uint8 nodeid
+uint8 channel
 ---
 bool success
