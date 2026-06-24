@@ -117,7 +117,14 @@ hardware_interface::CallbackReturn RobotSystem::on_configure(
 {
   executor_ =
     std::make_shared<rclcpp::executors::MultiThreadedExecutor>(rclcpp::ExecutorOptions(), 2);
-  device_container_ = std::make_shared<ros2_canopen::DeviceContainer>(executor_);
+
+  std::string container_name = "device_container";
+  if (info_.hardware_parameters.find("device_container_name") != info_.hardware_parameters.end())
+  {
+    container_name = info_.hardware_parameters["device_container_name"];
+  }
+
+  device_container_ = std::make_shared<ros2_canopen::DeviceContainer>(executor_, container_name);
   executor_->add_node(device_container_);
 
   spin_thread_ = std::make_unique<std::thread>(&RobotSystem::spin, this);
