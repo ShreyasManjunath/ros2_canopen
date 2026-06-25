@@ -116,7 +116,7 @@ hardware_interface::CallbackReturn RobotSystem::on_configure(
   const rclcpp_lifecycle::State & previous_state)
 {
   executor_ =
-    std::make_shared<rclcpp::executors::MultiThreadedExecutor>(rclcpp::ExecutorOptions(), 2);
+    std::make_shared<rclcpp::executors::MultiThreadedExecutor>(rclcpp::ExecutorOptions(), 4);
 
   std::string container_name = "device_container";
   if (info_.hardware_parameters.find("device_container_name") != info_.hardware_parameters.end())
