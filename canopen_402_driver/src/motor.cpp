@@ -60,7 +60,7 @@ bool Motor402::isModeSupportedByDevice(uint16_t mode)
 //     RCLCPP_WARN(rclcpp::get_logger("canopen_402_driver"), 
 //                 "Failed to read supported_drive_modes (0x6502). Hardcoding to mode %d.", supported_modes);
 //   }
-  uint32_t supported_modes = 3; // hardcode velocity mode.
+  uint32_t supported_modes = 4; // hardcode velocity mode. (0100)
     RCLCPP_WARN(rclcpp::get_logger("canopen_402_driver"), 
                  "Hardcoding to mode %d.", supported_modes);
   bool supported = supported_modes & (1 << (mode - 1));
