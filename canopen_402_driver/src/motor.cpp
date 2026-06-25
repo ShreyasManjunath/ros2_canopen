@@ -47,19 +47,22 @@ uint16_t Motor402::getMode()
 
 bool Motor402::isModeSupportedByDevice(uint16_t mode)
 {
-  uint32_t supported_modes = 0;
-  try 
-  {
+// uint32_t supported_modes = 0;
+//   try 
+//   {
+//     RCLCPP_WARN(rclcpp::get_logger("canopen_402_driver"), 
+//                 "Reading supported modes...");
+//     supported_modes = driver->universal_get_value<uint32_t>(supported_drive_modes_index, 0x0);
+//   }
+//   catch (...) 
+//   {
+//     uint32_t supported_modes = 3; // hardcode velocity mode.
+//     RCLCPP_WARN(rclcpp::get_logger("canopen_402_driver"), 
+//                 "Failed to read supported_drive_modes (0x6502). Hardcoding to mode %d.", supported_modes);
+//   }
+  uint32_t supported_modes = 3; // hardcode velocity mode.
     RCLCPP_WARN(rclcpp::get_logger("canopen_402_driver"), 
-                "Reading supported modes...");
-    supported_modes = driver->universal_get_value<uint32_t>(supported_drive_modes_index, 0x0);
-  }
-  catch (...) 
-  {
-    uint32_t supported_modes = 3; // hardcode velocity mode.
-    RCLCPP_WARN(rclcpp::get_logger("canopen_402_driver"), 
-                "Failed to read supported_drive_modes (0x6502). Hardcoding to mode %d.", supported_modes);
-  }
+                 "Hardcoding to mode %d.", supported_modes);
   bool supported = supported_modes & (1 << (mode - 1));
   bool below_max = mode <= 32;
   bool above_min = mode > 0;
@@ -67,8 +70,12 @@ bool Motor402::isModeSupportedByDevice(uint16_t mode)
 }
 void Motor402::registerMode(uint16_t id, const ModeSharedPtr & m)
 {
+    RCLCPP_INFO(rclcpp::get_logger("motor.cpp"), "registerMode: %d...", id);
   std::scoped_lock map_lock(map_mutex_);
-  if (m && m->mode_id_ == id) modes_.insert(std::make_pair(id, m));
+  if (m && m->mode_id_ == id){
+    modes_.insert(std::make_pair(id, m));
+    RCLCPP_INFO(rclcpp::get_logger("motor.cpp"), "registerMode: %d inserted.", id);
+  }
 }
 
 ModeSharedPtr Motor402::allocMode(uint16_t mode)
@@ -364,6 +371,7 @@ bool Motor402::handleInit()
   for (std::unordered_map<uint16_t, AllocFuncType>::iterator it = mode_allocators_.begin();
        it != mode_allocators_.end(); ++it)
   {
+    RCLCPP_INFO(rclcpp::get_logger("motor.cpp"), "handleInit, calling isModeSupportedByDevice");
     (it->second)();
   }
   RCLCPP_INFO(rclcpp::get_logger("canopen_402_driver"), "Init: Read State");

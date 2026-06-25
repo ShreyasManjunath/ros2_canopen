@@ -575,8 +575,10 @@ void NodeCanopen402Driver<NODETYPE>::handle_enable(
 template <class NODETYPE>
 bool NodeCanopen402Driver<NODETYPE>::init_motor()
 {
+  RCLCPP_WARN(this->node_->get_logger(),"node402 driver: init_motor");
   if (this->activated_.load())
   {
+    RCLCPP_WARN(this->node_->get_logger(), "calling motor_->handleInit()");
     bool temp = motor_->handleInit();
     return temp;
   }
