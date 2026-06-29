@@ -201,6 +201,9 @@ bool Motor402::switchState(const State402::InternalState & target)
   {
     std::unique_lock lock(cw_mutex_);
     State402::InternalState next = State402::Unknown;
+    RCLCPP_INFO(rclcpp::get_logger("motor.cpp"), 
+                "Transition: Current State=%d, Target State=%d, Next State=%d, Calculated CW=%d", 
+                state, target_state_, next, control_word_);
     bool success = Command402::setTransition(control_word_, state, target_state_, &next);
     if (!success)
     {
