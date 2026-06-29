@@ -201,10 +201,13 @@ bool Motor402::switchState(const State402::InternalState & target)
   {
     std::unique_lock lock(cw_mutex_);
     State402::InternalState next = State402::Unknown;
-    RCLCPP_INFO(rclcpp::get_logger("motor.cpp"), 
-                "Transition: Current State=%d, Target State=%d, Next State=%d, Calculated CW=%d", 
-                state, target_state_, next, control_word_);
-    bool success = Command402::setTransition(control_word_, state, target_state_, &next);
+    RCLCPP_INFO(rclcpp::get_logger("canopen_402_driver"), 
+                "Transition step: Current State=%d, Target State=%d, Next State=%d, Calculated CW=0x%04X", 
+                static_cast<int>(state), 
+                static_cast<int>(target_state_.load()), 
+                static_cast<int>(next), 
+                static_cast<uint16_t>(control_word_));
+    bool success = Command402::setTransition(control_word_, state, target_state_.load(), &next);
     if (!success)
     {
       RCLCPP_INFO(rclcpp::get_logger("canopen_402_driver"), "Could not set transition.");
@@ -276,7 +279,7 @@ void Motor402::handleRead() { readState(); }
 void Motor402::handleWrite()
 {
   std::scoped_lock lock(cw_mutex_);
-  control_word_ |= (1 << Command402::CW_Halt);
+  //control_word_ |= (1 << Command402::CW_Halt);
   if (state_handler_.getState() == State402::Operation_Enable)
   {
     std::scoped_lock lock(mode_mutex_);
@@ -292,7 +295,7 @@ void Motor402::handleWrite()
     }
     if (okay)
     {
-      control_word_ &= ~(1 << Command402::CW_Halt);
+      //control_word_ &= ~(1 << Command402::CW_Halt);
     }
   }
   if (start_fault_reset_.exchange(false))
