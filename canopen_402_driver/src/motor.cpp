@@ -148,7 +148,7 @@ bool Motor402::switchMode(uint16_t mode)
     std::unique_lock lock(mode_mutex_);
 
     std::chrono::steady_clock::time_point abstime =
-      std::chrono::steady_clock::now() + std::chrono::seconds(5);
+      std::chrono::steady_clock::now() + std::chrono::seconds(60);
     if (monitor_mode_)
     {
       while (mode_id_ != mode && mode_cond_.wait_until(lock, abstime) == std::cv_status::no_timeout)
