@@ -65,7 +65,7 @@ public:
   : MotorBase(),
     switching_state_(switching_state),
     monitor_mode_(true),
-    state_switch_timeout_(5),
+    state_switch_timeout_(60),
     homing_timeout_seconds_(homing_timeout_seconds),
     channel_(channel),
     effort_support_state_(-1)
