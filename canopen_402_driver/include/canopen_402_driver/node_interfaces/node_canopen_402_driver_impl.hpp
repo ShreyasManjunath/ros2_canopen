@@ -626,7 +626,17 @@ bool NodeCanopen402Driver<NODETYPE>::set_operation_mode(uint16_t mode)
     }
     else
     {
-      return false;
+      // set_operation_mode, not change_operation_mode: already being in the requested mode
+      // satisfies the request, so true is correct. E.g. a chained-mode controller switch
+      // (controller_manager stopping and starting the same command interface) calls this with
+      // the drive already in that mode -- false used to make perform_command_mode_switch()
+      // report ERROR and reject the switch.
+      // true means the drive IS in the requested mode, NOT that a transition was executed --
+      // callers must not infer a mode change occurred.
+      RCLCPP_DEBUG(
+        this->node_->get_logger(), "Node %u: redundant set_operation_mode(%u), already in that mode",
+        this->node_id_, mode);
+      return true;
     }
   }
   return false;
