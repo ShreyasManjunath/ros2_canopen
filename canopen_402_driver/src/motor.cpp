@@ -26,6 +26,30 @@ bool Motor402::setTarget(double val)
     std::scoped_lock lock(mode_mutex_);
     return selected_mode_ && selected_mode_->setTarget(val);
   }
+  // ===================== EXPERIMENT -- MUST NOT SHIP =====================
+  // Crude test build. Revert or rewrite properly before any release.
+  //
+  // Question: does the CyberDrive act on the live value in 0x60FF when it
+  // reaches Operation_Enabled, or latch the setpoint at the transition?
+  // Undocumented -- the EDS gives [60FF] AccessType=rww and no semantics.
+  //
+  // Why it has to be written here: ModeForwardHelper::write() is the only code
+  // that writes 0x60FF, and handleWrite() gates it on Operation_Enable, so it
+  // never runs during a fault. The master RPDOs are transmission type 0x01
+  // (SYNC-driven), so Lely re-serialises the stale OD entry every 20 ms on its
+  // own. universal_set_value is the only way to change what is on the wire.
+  //
+  // 0x60FF is hardcoded with no mode dispatch. setTarget() is mode-agnostic and
+  // also serves 0x607A (position) and 0x6071 (torque), so this is WRONG in
+  // those modes. Acceptable only because this robot runs Profile Velocity
+  // (0x6061 == 3 confirmed on both drives) and the test only needs velocity.
+  //
+  // Deliberately does not take mode_mutex_ and does not touch target_ or
+  // has_target_. The helper's cached target and the master's OD diverge until
+  // the first successful setTarget() reconciles them; only getTarget() can see
+  // it, and that is acceptable for a test.
+  this->driver->universal_set_value<int32_t>(0x60FF, 0x0, 0);
+  // ======================= END EXPERIMENT =======================
   return false;
 }
 bool Motor402::isModeSupported(uint16_t mode)
