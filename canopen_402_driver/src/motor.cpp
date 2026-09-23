@@ -279,7 +279,10 @@ void Motor402::handleRead() { readState(); }
 void Motor402::handleWrite()
 {
   std::scoped_lock lock(cw_mutex_);
-  //control_word_ |= (1 << Command402::CW_Halt);
+  // Re-enabled under test; 9a3d9fa disabled it. 0x60FF keeps the stale setpoint
+  // through a fault (setTarget() drops writes outside Operation_Enable), so bit 8
+  // is the only thing telling the drive not to act on it. Do not re-disable blind.
+  control_word_ |= (1 << Command402::CW_Halt);
   if (state_handler_.getState() == State402::Operation_Enable)
   {
     std::scoped_lock lock(mode_mutex_);
@@ -295,7 +298,9 @@ void Motor402::handleWrite()
     }
     if (okay)
     {
-      //control_word_ &= ~(1 << Command402::CW_Halt);
+      // Cleared only on a successful mode write, i.e. has_target_ true.
+      // Re-enabled under test; 9a3d9fa disabled it. See the set site above.
+      control_word_ &= ~(1 << Command402::CW_Halt);
     }
   }
   if (start_fault_reset_.exchange(false))
