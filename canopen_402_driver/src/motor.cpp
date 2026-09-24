@@ -262,9 +262,64 @@ bool Motor402::readState()
                      status_word_entry_index, 0x0);  // TODO: added error handling
   old_sw = status_word_.exchange(sw);
 
-  state_handler_.read(sw);
+  // ===== EXPERIMENT -- MUST NOT SHIP =====
+  // Root cause (confirmed via call-graph trace, not inference): the target_/
+  // has_target_ reset placed in start() earlier only executes via
+  // switchMode() or handleRecover() -- neither of which handleEnable() (the
+  // function motion_supervisor actually calls, via /left_wheel/enable and
+  // /right_wheel/enable) ever reaches. So that reset never ran on this
+  // robot's real recovery path, and has_target_/target_ stayed frozen at
+  // their last pre-fault value for the entire fault.
+  //
+  // Fix: reset at fault ENTRY instead of at recovery, right here where
+  // readState() -- the only writer of state_handler_'s state, called once
+  // per 20ms poll on this same thread -- observes the transition. old_state
+  // is read before this cycle's read(sw); new_state is read(sw)'s return
+  // value (the state it just computed and stored). Comparing the two is a
+  // one-shot rising-edge check on "just left Operation_Enable", not a level
+  // check: on the cycle state_ actually flips, old_state==Operation_Enable
+  // and new_state!=Operation_Enable, so the branch fires exactly once. Every
+  // later cycle while still faulted has old_state==new_state (whatever the
+  // fault state is), so the branch stays closed until the next genuine
+  // Operation_Enable -> non-Operation_Enable transition -- it cannot fight
+  // setTarget()'s own logic on a legitimate re-enable, since re-enabling
+  // moves toward Operation_Enable, not away from it.
+  //
+  // Race note (100Hz setTarget() zero-write experiment, different thread,
+  // no mode_mutex_, vs this 20ms readState() poll, under mode_mutex_): at
+  // the instant of the transition, controller_manager's setTarget() checks
+  // state_handler_.getState() BEFORE taking mode_mutex_ -- a classic
+  // check-then-act gap. If that unlocked check lands and reads the OLD
+  // (still-Operation_Enable) state a moment before this reset runs, but its
+  // subsequent selected_mode_->setTarget(val) call (under mode_mutex_) is
+  // scheduled to run AFTER this reset releases the lock, that single
+  // setTarget(val) call can "revive" has_target_=true with whatever val was
+  // live at that instant (not the full pre-fault setpoint -- cmd_vel_out is
+  // already mid-deceleration by then in every capture so far). Bounded to
+  // at most one 100Hz controller_manager cycle (<=10ms) right at fault
+  // entry, and self-limiting: the very next such cycle sees the now-visible
+  // non-Operation_Enable state and returns to the zero-write branch, which
+  // does not touch has_target_/target_. This edge has already fired once
+  // for this fault episode and will not refire, so if the race is hit, the
+  // revived (small, non-setpoint) target_ sits until the drive is actually
+  // re-enabled. Flagging as a known, narrow residual window -- not closed
+  // by this change -- rather than silently claiming it away.
+  State402::InternalState const old_state = state_handler_.getState();
+  State402::InternalState const new_state = state_handler_.read(sw);
 
   std::unique_lock lock(mode_mutex_);
+  if (old_state == State402::Operation_Enable && new_state != State402::Operation_Enable)
+  {
+    if (selected_mode_)
+    {
+      RCLCPP_INFO(
+        rclcpp::get_logger("canopen_402_driver"),
+        "readState: left Operation_Enable (state %d -> %d); resetting selected_mode_ target",
+        static_cast<int>(old_state), static_cast<int>(new_state));
+      selected_mode_->start();
+    }
+  }
+  // ======================= END EXPERIMENT =======================
   uint16_t new_mode;
   new_mode = driver->universal_get_value<int8_t>(op_mode_display_index, 0x0);
   // RCLCPP_INFO(rclcpp::get_logger("canopen_402_driver"), "Mode %hhi",new_mode);
