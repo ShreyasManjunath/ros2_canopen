@@ -84,6 +84,9 @@ public:
     return motor_->get_position() * scale_pos_from_dev_ + offset_pos_from_dev_;
   }
 
+  // No scaling -- it's a bitfield, not a physical quantity.
+  virtual uint16_t get_status_word() { return motor_->get_status_word(); }
+
   virtual uint16_t get_mode() { return motor_->getMode(); }
 
   /**

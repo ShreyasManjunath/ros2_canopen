@@ -201,6 +201,10 @@ public:
   {
     return (double)this->driver->universal_get_value<int32_t>(0x6064, 0);
   }
+  // Reads the live statusword straight from the shadow dictionary, same route as
+  // get_speed()/get_position() above -- NOT status_word_, which is only refreshed
+  // inside readState() on the 20 ms poll timer and would add cross-thread staleness.
+  uint16_t get_status_word() { return driver->universal_get_value<uint16_t>(status_word_entry_index, 0); }
 
   void set_diagnostic_status_msgs(std::shared_ptr<DiagnosticsCollector> status, bool enable)
   {

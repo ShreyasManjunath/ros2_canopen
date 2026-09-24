@@ -45,6 +45,10 @@ struct Cia402Data
   // FROM MOTOR
   double actual_position = std::numeric_limits<double>::quiet_NaN();
   double actual_velocity = std::numeric_limits<double>::quiet_NaN();
+  // CiA402 statusword (0x6041), read live from the shadow dictionary -- see
+  // Motor402::get_status_word(). A uint16_t stored exactly in a double; NaN until
+  // the first read() so an unread interface reads as invalid.
+  double actual_status_word = std::numeric_limits<double>::quiet_NaN();
 
   // TO MOTOR
   double target_position = std::numeric_limits<double>::quiet_NaN();
@@ -107,6 +111,10 @@ struct Cia402Data
     // actual speed
     state_interfaces.emplace_back(hardware_interface::StateInterface(
       joint_name, hardware_interface::HW_IF_VELOCITY, &actual_velocity));
+
+    // CiA402 statusword (0x6041)
+    state_interfaces.emplace_back(hardware_interface::StateInterface(
+      joint_name, "statusword", &actual_status_word));
   }
 
   void export_command_interface(
@@ -144,6 +152,7 @@ struct Cia402Data
   {
     actual_position = driver->get_position();
     actual_velocity = driver->get_speed();
+    actual_status_word = static_cast<double>(driver->get_status_word());
   }
 
   void write_target()
