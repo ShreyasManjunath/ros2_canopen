@@ -494,7 +494,26 @@ bool Motor402::handleRecover()
   start_fault_reset_ = true;
   {
     std::scoped_lock lock(mode_mutex_);
-    if (selected_mode_ && !selected_mode_->start())
+    // ===== DIAGNOSTIC -- MUST NOT SHIP =====
+    // Settles whether selected_mode_->start() (where the target_/has_target_
+    // fault-recovery reset lives) actually runs here, or is silently skipped
+    // because selected_mode_ is null at this instant. Restructured to call
+    // start() exactly once and reuse its result, so behavior is unchanged
+    // from the original `if (selected_mode_ && !selected_mode_->start())`.
+    bool const mode_selected = static_cast<bool>(selected_mode_);
+    RCLCPP_INFO(
+      rclcpp::get_logger("canopen_402_driver"), "handleRecover: selected_mode_ is %s",
+      mode_selected ? "non-null" : "null");
+    bool start_okay = true;
+    if (mode_selected)
+    {
+      start_okay = selected_mode_->start();
+      RCLCPP_INFO(
+        rclcpp::get_logger("canopen_402_driver"), "handleRecover: selected_mode_->start() returned %s",
+        start_okay ? "true" : "false");
+    }
+    // ===== END DIAGNOSTIC =====
+    if (mode_selected && !start_okay)
     {
       std::cout << "Could not restart mode." << std::endl;
       return false;
